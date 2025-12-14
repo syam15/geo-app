@@ -188,7 +188,7 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         let markers = []; let currUser = null, isReg = false, stream = null;
 
-        // --- UTILS ---
+        // UTILS
         function showLoading(text) {
             document.getElementById('loadingText').innerText = text;
             document.getElementById('loadingOverlay').style.display = 'flex';
@@ -197,31 +197,25 @@
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
-        // --- INIT ---
+        // INIT
         window.onload = () => { const s = localStorage.getItem('geoSess'); if(s) { currUser = JSON.parse(s); startApp(); } };
 
         function toggleSidebar(open) { 
-            const sb = document.getElementById('sidebar'); 
-            const ov = document.getElementById('sidebarOverlay'); 
+            const sb = document.getElementById('sidebar'); const ov = document.getElementById('sidebarOverlay'); 
             if(open) { sb.classList.add('active'); ov.classList.add('active'); } 
             else { sb.classList.remove('active'); ov.classList.remove('active'); } 
         }
-
         function toggleBottomSheet(show) {
             const bs = document.getElementById('bottomSheet');
-            if(show) bs.classList.add('show');
-            else bs.classList.remove('show');
+            if(show) bs.classList.add('show'); else bs.classList.remove('show');
         }
-
         function toggleNewProjUI() {
             const ui = document.getElementById('newProjUI');
-            if(ui.classList.contains('hidden')) ui.classList.remove('hidden');
-            else ui.classList.add('hidden');
+            if(ui.classList.contains('hidden')) ui.classList.remove('hidden'); else ui.classList.add('hidden');
         }
 
-        // --- AUTH ---
+        // AUTH
         function toggleReg() { isReg = !isReg; document.getElementById('regLink').innerText = isReg ? "Sudah punya akun? Login" : "Daftar Akun"; }
-        
         async function auth() {
             const u = document.getElementById('username').value; const p = document.getElementById('password').value;
             const ep = isReg ? '/api/auth/register' : '/api/auth/login';
@@ -236,9 +230,9 @@
                 } else alert(d.message); 
             } catch(e){ hideLoading(); alert("Error Koneksi"); }
         }
-        
         function logout() { localStorage.removeItem('geoSess'); location.reload(); }
 
+        // APP START
         async function startApp() {
             document.getElementById('authScreen').classList.add('hidden'); 
             document.getElementById('appUI').classList.remove('hidden'); 
@@ -269,70 +263,34 @@
             const res = await fetch('/api/project/create', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:currUser.username, projectName:n})}); 
             const d = await res.json(); 
             hideLoading();
-            if(d.success) { alert("Folder Dibuat!"); location.reload(); } 
-            else alert(d.message); 
+            if(d.success) { alert("Folder Dibuat!"); location.reload(); } else alert(d.message); 
         }
 
         async function loadData() {
             const val = document.getElementById('projSelect').value; 
             if(!val) { toggleBottomSheet(false); return; }
-            
-            const [owner, proj] = val.split('|');
-            const isOwner = (currUser.username === owner);
-
-            // AUTO CLOSE SIDEBAR
+            const [owner, proj] = val.split('|'); const isOwner = (currUser.username === owner);
             toggleSidebar(false);
-
             markers.forEach(m => map.removeLayer(m)); markers = [];
-            const listDiv = document.getElementById('photoList'); 
-            listDiv.innerHTML = '';
-
+            const listDiv = document.getElementById('photoList'); listDiv.innerHTML = '';
+            
             showLoading("Memuat Data...");
-            const res = await fetch(`/api/project/photos/${owner}/${proj}`); 
-            const photos = await res.json();
+            const res = await fetch(`/api/project/photos/${owner}/${proj}`); const photos = await res.json();
             hideLoading();
 
-            if(photos.length > 0) {
-                toggleBottomSheet(true);
-            } else {
-                toggleBottomSheet(false);
-                alert("Folder ini kosong. Silakan Upload/Foto.");
-                return;
-            }
+            if(photos.length > 0) toggleBottomSheet(true); else { toggleBottomSheet(false); alert("Folder Kosong"); return; }
 
             photos.forEach(p => {
                 if(p.lat && p.lng) {
                     const m = L.marker([p.lat, p.lng]).addTo(map);
                     let delBtn = isOwner ? `<br><button onclick="deletePhoto('${p.filename}')" style="background:red; color:white; border:none; border-radius:3px; font-size:10px; margin-top:5px; cursor:pointer;">Hapus 🗑️</button>` : '';
                     let dlBtnMap = `<a href="${p.path}" target="_blank" class="btn-download">⬇ Simpan</a>`;
-                    
-                    m.bindPopup(`
-                        <div style="text-align:center; width:160px">
-                            <img src="${p.path}" style="width:100%; height:120px; object-fit:cover; border-radius:6px">
-                            <div style="font-size:11px; margin-top:5px; line-height:1.4;">
-                                <b>${p.filename}</b><br>
-                                <span style="color:red; font-weight:bold;">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span><br>
-                                <span style="color:#777;">${p.date || '-'}</span><br>
-                                ${dlBtnMap} ${delBtn}
-                            </div>
-                        </div>
-                    `);
+                    m.bindPopup(`<div style="text-align:center; width:160px"><img src="${p.path}" style="width:100%; height:120px; object-fit:cover; border-radius:6px"><div style="font-size:11px; margin-top:5px; line-height:1.4;"><b>${p.filename}</b><br><span style="color:red; font-weight:bold;">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span><br><span style="color:#777;">${p.date || '-'}</span><br>${dlBtnMap} ${delBtn}</div></div>`);
                     markers.push(m);
-
                     const div = document.createElement('div'); div.className = 'photo-item';
                     let delBtnList = isOwner ? `<button class="btn-del" onclick="event.stopPropagation(); deletePhoto('${p.filename}')">🗑️</button>` : '';
                     let dlBtnList = `<a href="${p.path}" target="_blank" onclick="event.stopPropagation();" class="btn-download">⬇ Simpan</a>`;
-
-                    div.innerHTML = `
-                        <img src="${p.path}" class="thumb">
-                        <div class="info">
-                            <b>${p.filename}</b><br>
-                            <span class="coord">📍 ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span><br>
-                            <span class="date">📅 ${p.date || '-'}</span><br>
-                            ${dlBtnList}
-                        </div>
-                        ${delBtnList}
-                    `;
+                    div.innerHTML = `<img src="${p.path}" class="thumb"><div class="info"><b>${p.filename}</b><br><span class="coord">📍 ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span><br><span class="date">📅 ${p.date || '-'}</span><br>${dlBtnList}</div>${delBtnList}`;
                     div.onclick = () => { map.setView([p.lat, p.lng], 18); m.openPopup(); toggleSidebar(false); };
                     listDiv.appendChild(div);
                 }
@@ -341,78 +299,87 @@
         }
 
         async function deletePhoto(filename) {
-            if(!confirm("Hapus selamanya?")) return;
-            const val = document.getElementById('projSelect').value; 
-            const [owner, proj] = val.split('|');
+            if(!confirm("Yakin hapus?")) return;
+            const val = document.getElementById('projSelect').value; const [owner, proj] = val.split('|');
             showLoading("Menghapus...");
-            try {
-                const res = await fetch('/api/photo/delete', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: owner, project: proj, filename: filename })});
-                const d = await res.json(); 
-                hideLoading();
-                if(d.success) { alert("Terhapus"); loadData(); } else alert("Gagal Hapus");
-            } catch(e) { hideLoading(); alert("Error Server"); }
+            try { const res = await fetch('/api/photo/delete', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: owner, project: proj, filename: filename })});
+            const d = await res.json(); hideLoading(); if(d.success) { alert("Terhapus"); loadData(); } else alert("Gagal Hapus"); } catch(e) { hideLoading(); alert("Error Server"); }
         }
 
-        // --- CAMERA LOGIC (ANTI-SILENT FAIL) ---
+        // --- CAMERA ---
         async function openCam() { 
-            // CEK DULU SUDAH PILIH PROJECT BELUM
             const val = document.getElementById('projSelect').value;
-            if(!val) {
-                alert("⚠️ Pilih Folder Project dulu di Menu Sidebar!");
-                toggleSidebar(true);
-                // Highlight dropdown biar user ngeh
-                document.getElementById('projSelect').style.border = "2px solid red";
-                return;
-            }
-
+            if(!val) { alert("⚠️ Pilih Folder dulu!"); toggleSidebar(true); document.getElementById('projSelect').style.border = "2px solid red"; return; }
             document.getElementById('camModal').style.display = 'flex'; 
-            try { 
-                stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); 
-                document.getElementById('vid').srcObject = stream; 
-            } catch(e){ 
-                alert("Kamera Gagal Akses. Pastikan Izin Diberikan & Menggunakan HTTPS."); 
-                closeCam(); 
-            } 
+            try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment', width: { ideal: 1280 }, height: { ideal: 720 } }}); document.getElementById('vid').srcObject = stream; } 
+            catch(e){ alert("Gagal Akses Kamera"); closeCam(); } 
         }
         function closeCam() { document.getElementById('camModal').style.display = 'none'; if(stream) stream.getTracks().forEach(t=>t.stop()); }
         
         function snap() {
             if(!navigator.geolocation) return alert("Wajib Aktifkan GPS!");
-            
             showLoading("Mengambil Lokasi...");
             navigator.geolocation.getCurrentPosition(pos => {
                 hideLoading();
-                const v = document.getElementById('vid'); 
-                const c = document.getElementById('canvas');
-                c.width = v.videoWidth; c.height = v.videoHeight; 
-                c.getContext('2d').drawImage(v,0,0);
-                
+                const v = document.getElementById('vid'); const c = document.getElementById('canvas');
+                // Kecilkan resolusi canvas biar ringan (max width 1024)
+                const scale = Math.min(1, 1024 / v.videoWidth);
+                c.width = v.videoWidth * scale; c.height = v.videoHeight * scale; 
+                c.getContext('2d').drawImage(v,0,0, c.width, c.height);
                 c.toBlob(b => { 
                     sendFile(new File([b],"cam.jpg",{type:"image/jpeg"}), pos.coords.latitude, pos.coords.longitude); 
                     closeCam(); 
-                }, 'image/jpeg');
-            }, (err)=> {
-                hideLoading();
-                alert("Gagal Ambil GPS: " + err.message);
-            }, { enableHighAccuracy: true });
+                }, 'image/jpeg', 0.8); // Kompresi 0.8
+            }, (err)=> { hideLoading(); alert("Gagal GPS: " + err.message); }, { enableHighAccuracy: true });
         }
 
-        // --- UPLOAD LOGIC ---
+        // --- NEW: COMPRESSOR IMAGE (SOLUSI ERROR 413) ---
         function uploadFile() { 
             const file = document.getElementById('fileIn').files[0];
-            if(file) sendFile(file, null, null); 
+            if(!file) return;
+
+            // Jika file < 2MB, langsung kirim. Jika besar, kompres dulu.
+            if(file.size < 2 * 1024 * 1024) {
+                sendFile(file, null, null);
+            } else {
+                compressAndSend(file);
+            }
+        }
+
+        function compressAndSend(file) {
+            showLoading("Mengompres Foto Besar...");
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    // Resize max 1280px width
+                    const maxWidth = 1280;
+                    const scaleSize = maxWidth / img.width;
+                    canvas.width = maxWidth;
+                    canvas.height = img.height * scaleSize;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convert ke Blob (JPEG 70% Quality)
+                    canvas.toBlob((blob) => {
+                        const compressedFile = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+                        console.log(`Kompresi: ${file.size} -> ${compressedFile.size}`);
+                        sendFile(compressedFile, null, null);
+                    }, 'image/jpeg', 0.7); 
+                }
+            }
         }
         
         async function sendFile(f, lat, lng) {
             const val = document.getElementById('projSelect').value; 
-            if(!val) {
-                alert("⚠️ Pilih Folder Project dulu di Menu Sidebar!");
-                toggleSidebar(true);
-                return;
-            }
+            if(!val) { alert("⚠️ Pilih Folder dulu!"); toggleSidebar(true); return; }
             const [owner, proj] = val.split('|'); 
             
-            showLoading("Sedang Mengirim...");
+            showLoading("Sedang Mengupload...");
             const fd = new FormData(); 
             fd.append('username',owner); fd.append('project',proj); 
             fd.append('manualLat',lat); fd.append('manualLng',lng); 
@@ -420,13 +387,20 @@
             
             try {
                 const res = await fetch('/api/upload', {method:'POST', body:fd}); 
+                
+                // CEK RESPONSE, JANGAN ASAL PARSE JSON
+                if(!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`Server Error (${res.status}): Mungkin foto terlalu besar.`);
+                }
+
                 const d = await res.json(); 
                 hideLoading();
                 if(d.success) { alert("Berhasil Disimpan!"); loadData(); } 
                 else alert("Gagal: " + (d.message || "Cek Config Cloudinary"));
             } catch(e) {
                 hideLoading();
-                alert("Error Upload: " + e.message);
+                alert("❌ Upload Gagal: " + e.message);
             }
         }
     </script>

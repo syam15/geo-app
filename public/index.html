@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Geo Mobile Vercel</title>
+    <title>Geo Mobile Final</title>
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>">
     
@@ -25,7 +25,6 @@
 
         /* 3. TOP BAR (HAMBURGER ONLY) */
         .top-bar { position: fixed; top: 0; left: 0; width: 100%; height: 60px; z-index: 1000; display: flex; align-items: center; padding: 0 15px; pointer-events: none; }
-        /* Tombol menu diberi background sedikit agar terlihat di peta satelit/gelap */
         .menu-btn { 
             pointer-events: auto; font-size: 26px; color: #333; 
             background: white; border: none; cursor: pointer; 
@@ -57,13 +56,13 @@
         .btn-action { width: 100%; padding: 12px; border: 1px solid #ddd; background: white; border-radius: 8px; text-align: left; margin-bottom: 8px; font-weight: bold; color: #333; display: flex; align-items: center; gap: 10px; }
         .btn-action:active { background: #eee; }
 
-        /* 5. BOTTOM SHEET (LIST FOTO) - HIDDEN BY DEFAULT */
+        /* 5. BOTTOM SHEET (LIST FOTO) */
         #bottomSheet { 
             position: fixed; bottom: 0; left: 0; width: 100%; 
             background: white; border-radius: 20px 20px 0 0; 
             z-index: 900; box-shadow: 0 -5px 20px rgba(0,0,0,0.15); 
             max-height: 40vh; display: flex; flex-direction: column;
-            transform: translateY(110%); /* Sembunyi ke bawah */
+            transform: translateY(110%); /* Sembunyi */
             transition: transform 0.3s ease-out;
         }
         #bottomSheet.show { transform: translateY(0); } /* Muncul */
@@ -71,18 +70,16 @@
         .drag-handle { width: 40px; height: 5px; background: #ddd; margin: 10px auto; border-radius: 3px; flex-shrink: 0; }
         .sheet-list { padding: 10px 15px 20px 15px; overflow-y: auto; }
 
-        /* List Item Styling */
         .photo-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #eee; }
         .thumb { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; background: #eee; flex-shrink: 0; border: 1px solid #ddd; }
         .info { flex: 1; font-size: 12px; line-height: 1.4; }
-        .coord { color: var(--danger); font-family: monospace; font-weight: bold; }
+        .coord { color: var(--danger); font-weight: bold; }
         
         .btn-del { background: #ffebee; color: var(--danger); border: none; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 5px; }
         .btn-download { display: inline-block; text-decoration: none; background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 5px; }
 
         /* 6. FAB CAMERA */
         .fab { position: fixed; bottom: 30px; right: 20px; width: 60px; height: 60px; background: #e91e63; color: white; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(233, 30, 99, 0.4); z-index: 1500; font-size: 28px; display: flex; justify-content: center; align-items: center; transition: bottom 0.3s; }
-        /* Kalau bottom sheet muncul, kamera naik sedikit */
         #bottomSheet.show ~ .fab { bottom: 42vh; } 
 
         /* CAMERA MODAL */
@@ -90,9 +87,21 @@
         video { flex: 1; object-fit: cover; width: 100%; }
         .cam-ui { height: 120px; background: black; display: flex; justify-content: center; align-items: center; gap: 40px; }
         .shutter { width: 70px; height: 70px; background: white; border-radius: 50%; border: 5px solid #ccc; }
+        
+        /* LOADING OVERLAY */
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 9999; display: none;
+            flex-direction: column; justify-content: center; align-items: center; color: white;
+        }
     </style>
 </head>
 <body>
+
+    <div id="loadingOverlay">
+        <div style="font-size: 40px;">⏳</div>
+        <h3 id="loadingText">Memproses...</h3>
+    </div>
 
     <div id="authScreen">
         <div class="auth-card">
@@ -120,13 +129,13 @@
             <div class="sidebar-content">
                 
                 <div class="sidebar-group">
-                    <span class="sidebar-label">PROYEK AKTIF</span>
+                    <span class="sidebar-label">1. PILIH PROYEK AKTIF</span>
                     <select id="projSelect" onchange="loadData()">
                         </select>
                 </div>
 
                 <div id="userTools" class="sidebar-group">
-                    <span class="sidebar-label">MANAJEMEN</span>
+                    <span class="sidebar-label">2. MANAJEMEN</span>
                     
                     <button class="btn-action" onclick="toggleNewProjUI()">
                         <span>➕ Buat Folder Baru</span>
@@ -179,6 +188,16 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         let markers = []; let currUser = null, isReg = false, stream = null;
 
+        // --- UTILS ---
+        function showLoading(text) {
+            document.getElementById('loadingText').innerText = text;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // --- INIT ---
         window.onload = () => { const s = localStorage.getItem('geoSess'); if(s) { currUser = JSON.parse(s); startApp(); } };
 
         function toggleSidebar(open) { 
@@ -200,19 +219,22 @@
             else ui.classList.add('hidden');
         }
 
+        // --- AUTH ---
         function toggleReg() { isReg = !isReg; document.getElementById('regLink').innerText = isReg ? "Sudah punya akun? Login" : "Daftar Akun"; }
         
         async function auth() {
             const u = document.getElementById('username').value; const p = document.getElementById('password').value;
             const ep = isReg ? '/api/auth/register' : '/api/auth/login';
+            showLoading("Sedang Masuk...");
             try { 
                 const res = await fetch(ep, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u, password:p})}); 
                 const d = await res.json();
+                hideLoading();
                 if(d.success) { 
                     if(isReg) { alert("Daftar sukses!"); toggleReg(); } 
                     else { currUser = d.user; localStorage.setItem('geoSess', JSON.stringify(currUser)); startApp(); } 
                 } else alert(d.message); 
-            } catch(e){ alert("Error Koneksi"); }
+            } catch(e){ hideLoading(); alert("Error Koneksi"); }
         }
         
         function logout() { localStorage.removeItem('geoSess'); location.reload(); }
@@ -230,7 +252,7 @@
             const res = await fetch(`/api/projects/list/${currUser.username}/${currUser.role}`); 
             const list = await res.json();
             const sel = document.getElementById('projSelect'); 
-            sel.innerHTML = '<option value="">-- PILIH FOLDER DI SINI --</option>';
+            sel.innerHTML = '<option value="">-- PILIH PROYEK --</option>';
             list.forEach(p => { 
                 const opt = document.createElement('option'); 
                 opt.value = `${p.owner}|${p.name}`; 
@@ -243,9 +265,11 @@
         async function createProj() { 
             const n = document.getElementById('newProj').value; 
             if(!n) return; 
+            showLoading("Membuat Folder...");
             const res = await fetch('/api/project/create', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:currUser.username, projectName:n})}); 
             const d = await res.json(); 
-            if(d.success) { alert("Folder Dibuat!"); location.reload(); } // Reload biar list update
+            hideLoading();
+            if(d.success) { alert("Folder Dibuat!"); location.reload(); } 
             else alert(d.message); 
         }
 
@@ -256,22 +280,23 @@
             const [owner, proj] = val.split('|');
             const isOwner = (currUser.username === owner);
 
-            // AUTO CLOSE SIDEBAR SETELAH PILIH
+            // AUTO CLOSE SIDEBAR
             toggleSidebar(false);
 
             markers.forEach(m => map.removeLayer(m)); markers = [];
             const listDiv = document.getElementById('photoList'); 
             listDiv.innerHTML = '';
 
+            showLoading("Memuat Data...");
             const res = await fetch(`/api/project/photos/${owner}/${proj}`); 
             const photos = await res.json();
+            hideLoading();
 
-            // Jika ada foto, munculkan bottom sheet. Jika tidak, sembunyikan.
             if(photos.length > 0) {
                 toggleBottomSheet(true);
             } else {
                 toggleBottomSheet(false);
-                alert("Folder ini masih kosong.");
+                alert("Folder ini kosong. Silakan Upload/Foto.");
                 return;
             }
 
@@ -288,8 +313,7 @@
                                 <b>${p.filename}</b><br>
                                 <span style="color:red; font-weight:bold;">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span><br>
                                 <span style="color:#777;">${p.date || '-'}</span><br>
-                                ${dlBtnMap}
-                                ${delBtn}
+                                ${dlBtnMap} ${delBtn}
                             </div>
                         </div>
                     `);
@@ -317,41 +341,93 @@
         }
 
         async function deletePhoto(filename) {
-            if(!confirm("Yakin hapus foto ini?")) return;
+            if(!confirm("Hapus selamanya?")) return;
             const val = document.getElementById('projSelect').value; 
             const [owner, proj] = val.split('|');
+            showLoading("Menghapus...");
             try {
                 const res = await fetch('/api/photo/delete', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: owner, project: proj, filename: filename })});
                 const d = await res.json(); 
-                if(d.success) { alert("Berhasil Dihapus"); loadData(); } else alert("Gagal Hapus");
-            } catch(e) { alert("Error Server"); }
+                hideLoading();
+                if(d.success) { alert("Terhapus"); loadData(); } else alert("Gagal Hapus");
+            } catch(e) { hideLoading(); alert("Error Server"); }
         }
 
+        // --- CAMERA LOGIC (ANTI-SILENT FAIL) ---
         async function openCam() { 
+            // CEK DULU SUDAH PILIH PROJECT BELUM
+            const val = document.getElementById('projSelect').value;
+            if(!val) {
+                alert("⚠️ Pilih Folder Project dulu di Menu Sidebar!");
+                toggleSidebar(true);
+                // Highlight dropdown biar user ngeh
+                document.getElementById('projSelect').style.border = "2px solid red";
+                return;
+            }
+
             document.getElementById('camModal').style.display = 'flex'; 
-            try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); document.getElementById('vid').srcObject = stream; } 
-            catch(e){ alert("Gagal Akses Kamera"); closeCam(); } 
+            try { 
+                stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); 
+                document.getElementById('vid').srcObject = stream; 
+            } catch(e){ 
+                alert("Kamera Gagal Akses. Pastikan Izin Diberikan & Menggunakan HTTPS."); 
+                closeCam(); 
+            } 
         }
         function closeCam() { document.getElementById('camModal').style.display = 'none'; if(stream) stream.getTracks().forEach(t=>t.stop()); }
         
         function snap() {
             if(!navigator.geolocation) return alert("Wajib Aktifkan GPS!");
+            
+            showLoading("Mengambil Lokasi...");
             navigator.geolocation.getCurrentPosition(pos => {
-                const v = document.getElementById('vid'); const c = document.getElementById('canvas');
-                c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v,0,0);
-                c.toBlob(b => { sendFile(new File([b],"cam.jpg",{type:"image/jpeg"}), pos.coords.latitude, pos.coords.longitude); closeCam(); }, 'image/jpeg');
-            }, ()=> alert("Izin Lokasi Ditolak!"));
+                hideLoading();
+                const v = document.getElementById('vid'); 
+                const c = document.getElementById('canvas');
+                c.width = v.videoWidth; c.height = v.videoHeight; 
+                c.getContext('2d').drawImage(v,0,0);
+                
+                c.toBlob(b => { 
+                    sendFile(new File([b],"cam.jpg",{type:"image/jpeg"}), pos.coords.latitude, pos.coords.longitude); 
+                    closeCam(); 
+                }, 'image/jpeg');
+            }, (err)=> {
+                hideLoading();
+                alert("Gagal Ambil GPS: " + err.message);
+            }, { enableHighAccuracy: true });
         }
 
-        function uploadFile() { sendFile(document.getElementById('fileIn').files[0], null, null); }
+        // --- UPLOAD LOGIC ---
+        function uploadFile() { 
+            const file = document.getElementById('fileIn').files[0];
+            if(file) sendFile(file, null, null); 
+        }
+        
         async function sendFile(f, lat, lng) {
             const val = document.getElementById('projSelect').value; 
-            if(!val) return alert("Pilih Folder Dulu di Sidebar!");
+            if(!val) {
+                alert("⚠️ Pilih Folder Project dulu di Menu Sidebar!");
+                toggleSidebar(true);
+                return;
+            }
             const [owner, proj] = val.split('|'); 
-            const fd = new FormData(); fd.append('username',owner); fd.append('project',proj); fd.append('manualLat',lat); fd.append('manualLng',lng); fd.append('photo',f);
-            const res = await fetch('/api/upload', {method:'POST', body:fd}); 
-            const d = await res.json(); 
-            if(d.success) { alert("Upload Sukses!"); loadData(); } else alert("Upload Gagal");
+            
+            showLoading("Sedang Mengirim...");
+            const fd = new FormData(); 
+            fd.append('username',owner); fd.append('project',proj); 
+            fd.append('manualLat',lat); fd.append('manualLng',lng); 
+            fd.append('photo',f);
+            
+            try {
+                const res = await fetch('/api/upload', {method:'POST', body:fd}); 
+                const d = await res.json(); 
+                hideLoading();
+                if(d.success) { alert("Berhasil Disimpan!"); loadData(); } 
+                else alert("Gagal: " + (d.message || "Cek Config Cloudinary"));
+            } catch(e) {
+                hideLoading();
+                alert("Error Upload: " + e.message);
+            }
         }
     </script>
 </body>

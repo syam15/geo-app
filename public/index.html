@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Geo Mobile Pro</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root { --primary: #2980b9; --dark: #2c3e50; --danger: #c0392b; --sidebar-width: 280px; }
+        body { margin: 0; font-family: sans-serif; overflow: hidden; background: #eee; }
+        
+        /* MAP */
+        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        /* AUTH SCREEN */
+        #authScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark);
+            z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;
+        }
+        .auth-card { background: white; width: 100%; max-width: 320px; padding: 25px; border-radius: 15px; text-align: center; }
+        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+        button.btn-block { width: 100%; padding: 15px; border-radius: 8px; border: none; background: var(--primary); color: white; font-weight: bold; }
+
+        /* HEADER / NAVBAR */
+        .top-bar {
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+            z-index: 1000; display: flex; align-items: center; padding: 0 15px; box-sizing: border-box;
+            pointer-events: none; /* Klik tembus ke peta */
+        }
+        .menu-btn {
+            pointer-events: auto; font-size: 24px; color: white; background: none; border: none; cursor: pointer;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        /* SIDEBAR (MENU GARIS 3) */
+        #sidebarOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            z-index: 2000; opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        #sidebarOverlay.active { opacity: 1; visibility: visible; }
+
+        #sidebar {
+            position: fixed; top: 0; left: calc(var(--sidebar-width) * -1); width: var(--sidebar-width); height: 100%;
+            background: white; z-index: 2001; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        }
+        #sidebar.active { left: 0; }
+        
+        .sidebar-header { padding: 30px 20px; background: var(--dark); color: white; }
+        .sidebar-content { flex: 1; padding: 20px; overflow-y: auto; }
+        .sidebar-item { margin-bottom: 25px; }
+        .sidebar-label { font-size: 12px; font-weight: bold; color: #7f8c8d; margin-bottom: 8px; display: block; }
+        
+        .btn-action { width: 100%; padding: 12px; border: 1px solid #ddd; background: white; border-radius: 8px; text-align: left; margin-bottom: 5px; font-weight: bold; color: #333; }
+        .btn-action:active { background: #eee; }
+
+        /* BOTTOM SHEET (Hanya List Foto) */
+        #bottomSheet {
+            position: fixed; bottom: 0; left: 0; width: 100%; background: white;
+            border-radius: 20px 20px 0 0; z-index: 1000; box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
+            max-height: 40vh; display: flex; flex-direction: column;
+        }
+        .drag-handle { width: 40px; height: 4px; background: #ddd; margin: 10px auto; border-radius: 2px; flex-shrink: 0; }
+        .sheet-header { padding: 0 15px 10px 15px; flex-shrink: 0; }
+        .sheet-list { padding: 0 15px 20px 15px; overflow-y: auto; }
+
+        /* COMPONENTS */
+        select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-weight: bold; }
+        
+        .photo-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .thumb { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; background: #eee; }
+        .info { flex: 1; font-size: 11px; }
+        .coord { color: var(--danger); font-weight: bold; }
+        
+        .btn-del {
+            background: #ffebee; color: var(--danger); border: none; width: 30px; height: 30px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+
+        /* FAB Camera */
+        .fab {
+            position: fixed; bottom: 42vh; right: 20px; width: 55px; height: 55px;
+            background: #e91e63; color: white; border-radius: 50%; border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1500; font-size: 24px;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* CAMERA MODAL */
+        #camModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 5000; display: none; flex-direction: column; }
+        video { flex: 1; object-fit: cover; width: 100%; }
+        .cam-ui { height: 100px; background: black; display: flex; justify-content: center; align-items: center; gap: 30px; }
+        .shutter { width: 70px; height: 70px; background: white; border-radius: 50%; border: 5px solid #ccc; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="authScreen">
+        <div class="auth-card">
+            <h2 style="margin-top:0;">Geo Mobile Login</h2>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button class="btn-block" onclick="auth()">Masuk</button>
+            <p onclick="toggleReg()" id="regLink" style="color:#2980b9; font-size:13px; margin-bottom:0;">Daftar Akun</p>
+        </div>
+    </div>
+
+    <div id="appUI" class="hidden">
+        
+        <div class="top-bar">
+            <button class="menu-btn" onclick="toggleSidebar(true)">☰</button>
+        </div>
+
+        <div id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <h3 style="margin:0;">Geo Menu</h3>
+                <small id="userDisplay">Guest</small>
+            </div>
+            <div class="sidebar-content">
+                
+                <div id="userTools">
+                    <div class="sidebar-item">
+                        <span class="sidebar-label">PROYEK BARU</span>
+                        <input type="text" id="newProj" placeholder="Nama Folder..." style="margin-bottom:5px;">
+                        <button class="btn-block" onclick="createProj()" style="padding:10px; background:#27ae60;">+ Buat</button>
+                    </div>
+
+                    <div class="sidebar-item">
+                        <span class="sidebar-label">UPLOAD FILE</span>
+                        <button class="btn-action" onclick="document.getElementById('fileIn').click()">📂 Ambil dari Galeri</button>
+                        <input type="file" id="fileIn" class="hidden" accept="image/*" onchange="uploadFile()">
+                    </div>
+                </div>
+
+                <div class="sidebar-item" style="margin-top:auto;">
+                    <button class="btn-action" onclick="logout()" style="color:var(--danger); border-color:var(--danger);">🚪 Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="map"></div>
+
+        <button class="fab" id="fabCam" onclick="openCam()">📷</button>
+
+        <div id="bottomSheet">
+            <div class="drag-handle"></div>
+            <div class="sheet-header">
+                <select id="projSelect" onchange="loadData()"></select>
+            </div>
+            <div class="sheet-list" id="photoList"></div>
+        </div>
+    </div>
+
+    <div id="camModal">
+        <video id="vid" autoplay playsinline></video>
+        <canvas id="can" class="hidden"></canvas>
+        <div class="cam-ui">
+            <button onclick="closeCam()" style="background:none; border:none; color:white;">BATAL</button>
+            <button class="shutter" onclick="snap()"></button>
+            <div style="width:50px"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map', { zoomControl: false }).setView([-2.5, 118], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        let markers = [];
+        let currUser = null, isReg = false, stream = null;
+
+        // INIT
+        window.onload = () => {
+            const s = localStorage.getItem('geoSess');
+            if(s) { currUser = JSON.parse(s); startApp(); }
+        };
+
+        // UI TOGGLES
+        function toggleSidebar(open) {
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebarOverlay');
+            if(open) { sb.classList.add('active'); ov.classList.add('active'); }
+            else { sb.classList.remove('active'); ov.classList.remove('active'); }
+        }
+
+        // AUTH
+        function toggleReg() {
+            isReg = !isReg;
+            document.getElementById('regLink').innerText = isReg ? "Sudah punya akun? Login" : "Daftar Akun";
+        }
+        async function auth() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const ep = isReg ? '/api/auth/register' : '/api/auth/login';
+            try {
+                const res = await fetch(ep, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u, password:p})});
+                const d = await res.json();
+                if(d.success) {
+                    if(isReg) { alert("Daftar sukses!"); toggleReg(); }
+                    else { currUser = d.user; localStorage.setItem('geoSess', JSON.stringify(currUser)); startApp(); }
+                } else alert(d.message);
+            } catch(e){ alert("Error"); }
+        }
+        function logout() { localStorage.removeItem('geoSess'); location.reload(); }
+
+        // APP START
+        async function startApp() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('appUI').classList.remove('hidden');
+            document.getElementById('userDisplay').innerText = `${currUser.username} (${currUser.role})`;
+
+            if(currUser.role === 'admin') {
+                document.getElementById('userTools').classList.add('hidden');
+                document.getElementById('fabCam').classList.add('hidden');
+            }
+
+            const res = await fetch(`/api/projects/list/${currUser.username}/${currUser.role}`);
+            const list = await res.json();
+            const sel = document.getElementById('projSelect');
+            sel.innerHTML = '<option value="">-- PILIH FOLDER --</option>';
+            list.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = `${p.owner}|${p.name}`;
+                opt.text = currUser.role === 'admin' ? `${p.name} (${p.owner})` : p.name;
+                sel.add(opt);
+            });
+            setTimeout(()=>map.invalidateSize(), 500);
+        }
+
+        // ACTIONS
+        async function createProj() {
+            const n = document.getElementById('newProj').value;
+            if(!n) return;
+            const res = await fetch('/api/project/create', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:currUser.username, projectName:n})});
+            const d = await res.json();
+            if(d.success) { alert("Dibuat!"); toggleSidebar(false); startApp(); } else alert(d.message);
+        }
+
+        async function loadData() {
+            const val = document.getElementById('projSelect').value;
+            if(!val) return;
+            const [owner, proj] = val.split('|');
+            
+            // Cek milik sendiri untuk tombol delete
+            const isOwner = (currUser.username === owner);
+
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            const listDiv = document.getElementById('photoList');
+            listDiv.innerHTML = '';
+
+            const res = await fetch(`/api/project/photos/${owner}/${proj}`);
+            const photos = await res.json();
+
+            if(photos.length === 0) listDiv.innerHTML = '<center style="padding:10px; color:#999">Kosong</center>';
+
+            photos.forEach(p => {
+                if(p.lat && p.lng) {
+                    // MAP
+                    const m = L.marker([p.lat, p.lng]).addTo(map);
+                    
+                    // Tombol Hapus di Popup (Hanya pemilik)
+                    let delBtnMap = '';
+                    if(isOwner) {
+                        delBtnMap = `<br><button onclick="deletePhoto('${p.filename}')" style="background:red; color:white; border:none; border-radius:3px; font-size:10px; margin-top:5px; cursor:pointer;">Hapus 🗑️</button>`;
+                    }
+
+                    m.bindPopup(`
+                        <div style="text-align:center; width:150px">
+                            <img src="${p.path}" style="width:100%; height:100px; object-fit:cover; border-radius:5px">
+                            <div style="font-size:11px; margin-top:5px;">
+                                <b>${p.filename}</b><br>
+                                <span style="color:red">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span><br>
+                                <small>${p.date || '-'}</small>
+                                ${delBtnMap}
+                            </div>
+                        </div>
+                    `);
+                    markers.push(m);
+
+                    // LIST
+                    const div = document.createElement('div');
+                    div.className = 'photo-item';
+                    
+                    // Tombol Hapus di List
+                    let delBtnList = '';
+                    if(isOwner) {
+                        delBtnList = `<button class="btn-del" onclick="event.stopPropagation(); deletePhoto('${p.filename}')">🗑️</button>`;
+                    }
+
+                    div.innerHTML = `
+                        <img src="${p.path}" class="thumb">
+                        <div class="info">
+                            <b>${p.filename}</b><br>
+                            <span class="coord">📍 ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span><br>
+                            <span style="color:#777">📅 ${p.date || '-'}</span>
+                        </div>
+                        ${delBtnList}
+                    `;
+                    div.onclick = () => { map.setView([p.lat, p.lng], 18); m.openPopup(); toggleSidebar(false); };
+                    listDiv.appendChild(div);
+                }
+            });
+            if(markers.length > 0) map.fitBounds(new L.featureGroup(markers).getBounds().pad(0.2));
+        }
+
+        // --- NEW: DELETE FUNCTION ---
+        async function deletePhoto(filename) {
+            if(!confirm("Yakin ingin menghapus foto ini selamanya?")) return;
+            
+            const val = document.getElementById('projSelect').value;
+            const [owner, proj] = val.split('|');
+
+            try {
+                const res = await fetch('/api/photo/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username: owner, project: proj, filename: filename })
+                });
+                const d = await res.json();
+                if(d.success) {
+                    alert("Foto dihapus.");
+                    loadData(); // Refresh list
+                } else {
+                    alert("Gagal hapus: " + d.message);
+                }
+            } catch(e) { alert("Error server"); }
+        }
+
+        // CAMERA & UPLOAD
+        async function openCam() {
+            document.getElementById('camModal').style.display = 'flex';
+            try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); document.getElementById('vid').srcObject = stream; } catch(e){ alert("Error Cam"); closeCam(); }
+        }
+        function closeCam() { document.getElementById('camModal').style.display = 'none'; if(stream) stream.getTracks().forEach(t=>t.stop()); }
+        function snap() {
+            if(!navigator.geolocation) return alert("GPS Wajib!");
+            navigator.geolocation.getCurrentPosition(pos => {
+                const v = document.getElementById('vid'); const c = document.getElementById('can');
+                c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v,0,0);
+                c.toBlob(b => { sendFile(new File([b],"cam.jpg",{type:"image/jpeg"}), pos.coords.latitude, pos.coords.longitude); closeCam(); }, 'image/jpeg');
+            });
+        }
+        function uploadFile() { sendFile(document.getElementById('fileIn').files[0], null, null); }
+        async function sendFile(f, lat, lng) {
+            const val = document.getElementById('projSelect').value;
+            if(!val) return alert("Pilih Folder di Bawah!");
+            const [owner, proj] = val.split('|');
+            const fd = new FormData(); fd.append('username',owner); fd.append('project',proj); fd.append('manualLat',lat); fd.append('manualLng',lng); fd.append('photo',f);
+            const res = await fetch('/api/upload', {method:'POST', body:fd});
+            const d = await res.json();
+            if(d.success) { alert("Sukses!"); toggleSidebar(false); loadData(); } else alert("Gagal");
+        }
+    </script>
+</body>
+</html>

@@ -10,60 +10,80 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        :root { --primary: #2980b9; --dark: #2c3e50; --danger: #c0392b; --sidebar-width: 280px; }
+        :root { --primary: #2980b9; --dark: #2c3e50; --danger: #c0392b; --sidebar-width: 300px; }
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; background: #eee; }
         
-        /* MAP */
+        /* 1. MAP FULL SCREEN */
         #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         .hidden { display: none !important; }
 
-        /* AUTH SCREEN */
+        /* 2. AUTH SCREEN */
         #authScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
         .auth-card { background: white; width: 100%; max-width: 320px; padding: 25px; border-radius: 15px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
         input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
         button.btn-block { width: 100%; padding: 15px; border-radius: 8px; border: none; background: var(--primary); color: white; font-weight: bold; font-size: 16px; }
 
-        /* TOP BAR */
-        .top-bar { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent); z-index: 1000; display: flex; align-items: center; padding: 0 15px; box-sizing: border-box; pointer-events: none; }
-        .menu-btn { pointer-events: auto; font-size: 28px; color: white; background: none; border: none; cursor: pointer; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        /* 3. TOP BAR (HAMBURGER ONLY) */
+        .top-bar { position: fixed; top: 0; left: 0; width: 100%; height: 60px; z-index: 1000; display: flex; align-items: center; padding: 0 15px; pointer-events: none; }
+        /* Tombol menu diberi background sedikit agar terlihat di peta satelit/gelap */
+        .menu-btn { 
+            pointer-events: auto; font-size: 26px; color: #333; 
+            background: white; border: none; cursor: pointer; 
+            width: 45px; height: 45px; border-radius: 50%; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: flex; justify-content: center; align-items: center;
+        }
 
-        /* SIDEBAR */
+        /* 4. SIDEBAR (MENU UTAMA) */
         #sidebarOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; opacity: 0; visibility: hidden; transition: 0.3s; }
         #sidebarOverlay.active { opacity: 1; visibility: visible; }
-        #sidebar { position: fixed; top: 0; left: calc(var(--sidebar-width) * -1); width: var(--sidebar-width); height: 100%; background: white; z-index: 2001; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.2); }
+        
+        #sidebar { 
+            position: fixed; top: 0; left: calc(var(--sidebar-width) * -1); 
+            width: var(--sidebar-width); height: 100%; background: white; 
+            z-index: 2001; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.2); 
+        }
         #sidebar.active { left: 0; }
+        
         .sidebar-header { padding: 30px 20px; background: var(--dark); color: white; }
         .sidebar-content { flex: 1; padding: 20px; overflow-y: auto; }
-        .sidebar-item { margin-bottom: 25px; }
-        .sidebar-label { font-size: 12px; font-weight: bold; color: #7f8c8d; margin-bottom: 8px; display: block; }
-        .btn-action { width: 100%; padding: 12px; border: 1px solid #ddd; background: white; border-radius: 8px; text-align: left; margin-bottom: 5px; font-weight: bold; color: #333; }
-
-        /* BOTTOM SHEET */
-        #bottomSheet { position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-radius: 20px 20px 0 0; z-index: 1000; box-shadow: 0 -5px 20px rgba(0,0,0,0.15); max-height: 40vh; display: flex; flex-direction: column; }
-        .drag-handle { width: 40px; height: 5px; background: #ddd; margin: 10px auto; border-radius: 3px; flex-shrink: 0; }
-        .sheet-header { padding: 0 15px 10px 15px; flex-shrink: 0; }
-        .sheet-list { padding: 0 15px 20px 15px; overflow-y: auto; }
-
-        /* UI COMPONENTS */
-        select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-weight: bold; font-size: 14px; background: #f9f9f9; }
         
+        /* Dropdown & Tools di Sidebar */
+        .sidebar-group { margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .sidebar-label { font-size: 11px; font-weight: bold; color: #95a5a6; margin-bottom: 8px; display: block; letter-spacing: 1px; }
+        
+        select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #2980b9; font-weight: bold; font-size: 14px; background: #f0f8ff; color: #2c3e50; }
+        .btn-action { width: 100%; padding: 12px; border: 1px solid #ddd; background: white; border-radius: 8px; text-align: left; margin-bottom: 8px; font-weight: bold; color: #333; display: flex; align-items: center; gap: 10px; }
+        .btn-action:active { background: #eee; }
+
+        /* 5. BOTTOM SHEET (LIST FOTO) - HIDDEN BY DEFAULT */
+        #bottomSheet { 
+            position: fixed; bottom: 0; left: 0; width: 100%; 
+            background: white; border-radius: 20px 20px 0 0; 
+            z-index: 900; box-shadow: 0 -5px 20px rgba(0,0,0,0.15); 
+            max-height: 40vh; display: flex; flex-direction: column;
+            transform: translateY(110%); /* Sembunyi ke bawah */
+            transition: transform 0.3s ease-out;
+        }
+        #bottomSheet.show { transform: translateY(0); } /* Muncul */
+        
+        .drag-handle { width: 40px; height: 5px; background: #ddd; margin: 10px auto; border-radius: 3px; flex-shrink: 0; }
+        .sheet-list { padding: 10px 15px 20px 15px; overflow-y: auto; }
+
+        /* List Item Styling */
         .photo-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #eee; }
         .thumb { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; background: #eee; flex-shrink: 0; border: 1px solid #ddd; }
         .info { flex: 1; font-size: 12px; line-height: 1.4; }
         .coord { color: var(--danger); font-family: monospace; font-weight: bold; }
-        .date { color: #777; font-size: 11px; }
-
-        /* BUTTONS */
-        .btn-del { background: #ffebee; color: var(--danger); border: none; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 5px; }
         
-        .btn-download {
-            display: inline-block; text-decoration: none; 
-            background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0;
-            padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 5px;
-        }
+        .btn-del { background: #ffebee; color: var(--danger); border: none; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 5px; }
+        .btn-download { display: inline-block; text-decoration: none; background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 5px; }
 
-        /* FAB CAMERA */
-        .fab { position: fixed; bottom: 45vh; right: 20px; width: 60px; height: 60px; background: #e91e63; color: white; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(233, 30, 99, 0.4); z-index: 1500; font-size: 28px; display: flex; justify-content: center; align-items: center; }
+        /* 6. FAB CAMERA */
+        .fab { position: fixed; bottom: 30px; right: 20px; width: 60px; height: 60px; background: #e91e63; color: white; border-radius: 50%; border: none; box-shadow: 0 4px 15px rgba(233, 30, 99, 0.4); z-index: 1500; font-size: 28px; display: flex; justify-content: center; align-items: center; transition: bottom 0.3s; }
+        /* Kalau bottom sheet muncul, kamera naik sedikit */
+        #bottomSheet.show ~ .fab { bottom: 42vh; } 
 
         /* CAMERA MODAL */
         #camModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 5000; display: none; flex-direction: column; }
@@ -96,24 +116,36 @@
                 <h3 style="margin:0;">Geo Menu</h3>
                 <small id="userDisplay">Guest</small>
             </div>
+            
             <div class="sidebar-content">
                 
-                <div id="userTools">
-                    <div class="sidebar-item">
-                        <span class="sidebar-label">PROYEK BARU</span>
-                        <input type="text" id="newProj" placeholder="Nama Folder..." style="margin-bottom:5px;">
-                        <button class="btn-block" onclick="createProj()" style="padding:10px; background:#27ae60;">+ Buat</button>
-                    </div>
-
-                    <div class="sidebar-item">
-                        <span class="sidebar-label">UPLOAD FILE</span>
-                        <button class="btn-action" onclick="document.getElementById('fileIn').click()">📂 Ambil dari Galeri</button>
-                        <input type="file" id="fileIn" class="hidden" accept="image/*" onchange="uploadFile()">
-                    </div>
+                <div class="sidebar-group">
+                    <span class="sidebar-label">PROYEK AKTIF</span>
+                    <select id="projSelect" onchange="loadData()">
+                        </select>
                 </div>
 
-                <div class="sidebar-item" style="margin-top:auto;">
-                    <button class="btn-action" onclick="logout()" style="color:var(--danger); border-color:var(--danger);">🚪 Logout</button>
+                <div id="userTools" class="sidebar-group">
+                    <span class="sidebar-label">MANAJEMEN</span>
+                    
+                    <button class="btn-action" onclick="toggleNewProjUI()">
+                        <span>➕ Buat Folder Baru</span>
+                    </button>
+                    <div id="newProjUI" class="hidden" style="margin-bottom:10px;">
+                        <input type="text" id="newProj" placeholder="Nama Folder..." style="margin-bottom:5px;">
+                        <button class="btn-block" onclick="createProj()" style="padding:8px; background:#27ae60; font-size:12px;">Simpan</button>
+                    </div>
+
+                    <button class="btn-action" onclick="document.getElementById('fileIn').click()">
+                        <span>📂 Upload dari Galeri</span>
+                    </button>
+                    <input type="file" id="fileIn" class="hidden" accept="image/*" onchange="uploadFile()">
+                </div>
+
+                <div style="margin-top:auto;">
+                    <button class="btn-action" onclick="logout()" style="color:var(--danger); border-color:var(--danger);">
+                        <span>🚪 Logout</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -124,8 +156,8 @@
 
         <div id="bottomSheet">
             <div class="drag-handle"></div>
-            <div class="sheet-header">
-                <select id="projSelect" onchange="loadData()"></select>
+            <div style="text-align:center; font-size:10px; color:#999; padding-bottom:5px;" onclick="toggleBottomSheet(false)">
+                (Geser ke bawah untuk menutup)
             </div>
             <div class="sheet-list" id="photoList"></div>
         </div>
@@ -143,22 +175,12 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // INISIALISASI PETA
         const map = L.map('map', { zoomControl: false }).setView([-2.5, 118], 5);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        
-        let markers = []; 
-        let currUser = null;
-        let isReg = false;
-        let stream = null;
+        let markers = []; let currUser = null, isReg = false, stream = null;
 
-        // CEK LOGIN SAAT START
-        window.onload = () => { 
-            const s = localStorage.getItem('geoSess'); 
-            if(s) { currUser = JSON.parse(s); startApp(); } 
-        };
+        window.onload = () => { const s = localStorage.getItem('geoSess'); if(s) { currUser = JSON.parse(s); startApp(); } };
 
-        // SIDEBAR CONTROL
         function toggleSidebar(open) { 
             const sb = document.getElementById('sidebar'); 
             const ov = document.getElementById('sidebarOverlay'); 
@@ -166,21 +188,28 @@
             else { sb.classList.remove('active'); ov.classList.remove('active'); } 
         }
 
-        // AUTHENTICATION
-        function toggleReg() { 
-            isReg = !isReg; 
-            document.getElementById('regLink').innerText = isReg ? "Sudah punya akun? Login" : "Daftar Akun"; 
+        function toggleBottomSheet(show) {
+            const bs = document.getElementById('bottomSheet');
+            if(show) bs.classList.add('show');
+            else bs.classList.remove('show');
         }
+
+        function toggleNewProjUI() {
+            const ui = document.getElementById('newProjUI');
+            if(ui.classList.contains('hidden')) ui.classList.remove('hidden');
+            else ui.classList.add('hidden');
+        }
+
+        function toggleReg() { isReg = !isReg; document.getElementById('regLink').innerText = isReg ? "Sudah punya akun? Login" : "Daftar Akun"; }
         
         async function auth() {
-            const u = document.getElementById('username').value; 
-            const p = document.getElementById('password').value;
+            const u = document.getElementById('username').value; const p = document.getElementById('password').value;
             const ep = isReg ? '/api/auth/register' : '/api/auth/login';
             try { 
                 const res = await fetch(ep, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u, password:p})}); 
                 const d = await res.json();
                 if(d.success) { 
-                    if(isReg) { alert("Daftar sukses! Silakan Login."); toggleReg(); } 
+                    if(isReg) { alert("Daftar sukses!"); toggleReg(); } 
                     else { currUser = d.user; localStorage.setItem('geoSess', JSON.stringify(currUser)); startApp(); } 
                 } else alert(d.message); 
             } catch(e){ alert("Error Koneksi"); }
@@ -188,23 +217,20 @@
         
         function logout() { localStorage.removeItem('geoSess'); location.reload(); }
 
-        // START APLIKASI
         async function startApp() {
             document.getElementById('authScreen').classList.add('hidden'); 
             document.getElementById('appUI').classList.remove('hidden'); 
             document.getElementById('userDisplay').innerText = `${currUser.username} (${currUser.role})`;
             
-            // Sembunyikan fitur jika Admin
             if(currUser.role === 'admin') { 
                 document.getElementById('userTools').classList.add('hidden'); 
                 document.getElementById('fabCam').classList.add('hidden'); 
             }
             
-            // Ambil Daftar Project
             const res = await fetch(`/api/projects/list/${currUser.username}/${currUser.role}`); 
             const list = await res.json();
             const sel = document.getElementById('projSelect'); 
-            sel.innerHTML = '<option value="">-- PILIH FOLDER --</option>';
+            sel.innerHTML = '<option value="">-- PILIH FOLDER DI SINI --</option>';
             list.forEach(p => { 
                 const opt = document.createElement('option'); 
                 opt.value = `${p.owner}|${p.name}`; 
@@ -214,42 +240,47 @@
             setTimeout(()=>map.invalidateSize(), 500);
         }
 
-        // BUAT FOLDER PROYEK
         async function createProj() { 
             const n = document.getElementById('newProj').value; 
             if(!n) return; 
             const res = await fetch('/api/project/create', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:currUser.username, projectName:n})}); 
             const d = await res.json(); 
-            if(d.success) { alert("Folder Dibuat!"); toggleSidebar(false); startApp(); } 
+            if(d.success) { alert("Folder Dibuat!"); location.reload(); } // Reload biar list update
             else alert(d.message); 
         }
 
-        // LOAD DATA FOTO (FUNGSI UTAMA)
         async function loadData() {
             const val = document.getElementById('projSelect').value; 
-            if(!val) return; 
+            if(!val) { toggleBottomSheet(false); return; }
+            
             const [owner, proj] = val.split('|');
             const isOwner = (currUser.username === owner);
 
-            markers.forEach(m => map.removeLayer(m)); 
-            markers = [];
+            // AUTO CLOSE SIDEBAR SETELAH PILIH
+            toggleSidebar(false);
+
+            markers.forEach(m => map.removeLayer(m)); markers = [];
             const listDiv = document.getElementById('photoList'); 
             listDiv.innerHTML = '';
 
             const res = await fetch(`/api/project/photos/${owner}/${proj}`); 
             const photos = await res.json();
 
-            if(photos.length === 0) listDiv.innerHTML = '<center style="padding:20px; color:#999">Folder Kosong</center>';
+            // Jika ada foto, munculkan bottom sheet. Jika tidak, sembunyikan.
+            if(photos.length > 0) {
+                toggleBottomSheet(true);
+            } else {
+                toggleBottomSheet(false);
+                alert("Folder ini masih kosong.");
+                return;
+            }
 
             photos.forEach(p => {
                 if(p.lat && p.lng) {
                     const m = L.marker([p.lat, p.lng]).addTo(map);
-                    
-                    // Tombol Hapus & Download (Conditional)
                     let delBtn = isOwner ? `<br><button onclick="deletePhoto('${p.filename}')" style="background:red; color:white; border:none; border-radius:3px; font-size:10px; margin-top:5px; cursor:pointer;">Hapus 🗑️</button>` : '';
                     let dlBtnMap = `<a href="${p.path}" target="_blank" class="btn-download">⬇ Simpan</a>`;
                     
-                    // 1. ISI POPUP PETA
                     m.bindPopup(`
                         <div style="text-align:center; width:160px">
                             <img src="${p.path}" style="width:100%; height:120px; object-fit:cover; border-radius:6px">
@@ -264,10 +295,7 @@
                     `);
                     markers.push(m);
 
-                    // 2. ISI LIST BAWAH
-                    const div = document.createElement('div'); 
-                    div.className = 'photo-item';
-                    
+                    const div = document.createElement('div'); div.className = 'photo-item';
                     let delBtnList = isOwner ? `<button class="btn-del" onclick="event.stopPropagation(); deletePhoto('${p.filename}')">🗑️</button>` : '';
                     let dlBtnList = `<a href="${p.path}" target="_blank" onclick="event.stopPropagation();" class="btn-download">⬇ Simpan</a>`;
 
@@ -288,12 +316,10 @@
             if(markers.length > 0) map.fitBounds(new L.featureGroup(markers).getBounds().pad(0.2));
         }
 
-        // HAPUS FOTO
         async function deletePhoto(filename) {
             if(!confirm("Yakin hapus foto ini?")) return;
             const val = document.getElementById('projSelect').value; 
             const [owner, proj] = val.split('|');
-            
             try {
                 const res = await fetch('/api/photo/delete', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: owner, project: proj, filename: filename })});
                 const d = await res.json(); 
@@ -301,47 +327,31 @@
             } catch(e) { alert("Error Server"); }
         }
 
-        // KAMERA LOGIC
         async function openCam() { 
             document.getElementById('camModal').style.display = 'flex'; 
-            try { 
-                stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); 
-                document.getElementById('vid').srcObject = stream; 
-            } catch(e){ alert("Gagal Akses Kamera (Cek Izin/HTTPS)"); closeCam(); } 
+            try { stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); document.getElementById('vid').srcObject = stream; } 
+            catch(e){ alert("Gagal Akses Kamera"); closeCam(); } 
         }
         function closeCam() { document.getElementById('camModal').style.display = 'none'; if(stream) stream.getTracks().forEach(t=>t.stop()); }
         
         function snap() {
             if(!navigator.geolocation) return alert("Wajib Aktifkan GPS!");
             navigator.geolocation.getCurrentPosition(pos => {
-                const v = document.getElementById('vid'); 
-                const c = document.getElementById('canvas');
-                c.width = v.videoWidth; c.height = v.videoHeight; 
-                c.getContext('2d').drawImage(v,0,0);
-                c.toBlob(b => { 
-                    sendFile(new File([b],"cam.jpg",{type:"image/jpeg"}), pos.coords.latitude, pos.coords.longitude); 
-                    closeCam(); 
-                }, 'image/jpeg');
+                const v = document.getElementById('vid'); const c = document.getElementById('canvas');
+                c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v,0,0);
+                c.toBlob(b => { sendFile(new File([b],"cam.jpg",{type:"image/jpeg"}), pos.coords.latitude, pos.coords.longitude); closeCam(); }, 'image/jpeg');
             }, ()=> alert("Izin Lokasi Ditolak!"));
         }
 
-        // UPLOAD FILE
         function uploadFile() { sendFile(document.getElementById('fileIn').files[0], null, null); }
-        
         async function sendFile(f, lat, lng) {
             const val = document.getElementById('projSelect').value; 
-            if(!val) return alert("Pilih Folder Dulu di Bawah!");
+            if(!val) return alert("Pilih Folder Dulu di Sidebar!");
             const [owner, proj] = val.split('|'); 
-            
-            const fd = new FormData(); 
-            fd.append('username',owner); fd.append('project',proj); 
-            fd.append('manualLat',lat); fd.append('manualLng',lng); 
-            fd.append('photo',f);
-            
+            const fd = new FormData(); fd.append('username',owner); fd.append('project',proj); fd.append('manualLat',lat); fd.append('manualLng',lng); fd.append('photo',f);
             const res = await fetch('/api/upload', {method:'POST', body:fd}); 
             const d = await res.json(); 
-            if(d.success) { alert("Upload Sukses!"); toggleSidebar(false); loadData(); } 
-            else alert("Upload Gagal");
+            if(d.success) { alert("Upload Sukses!"); loadData(); } else alert("Upload Gagal");
         }
     </script>
 </body>

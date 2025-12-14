@@ -1,0 +1,14 @@
+{
+  "name": "geo-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "dependencies": {
+    "cloudinary": "^2.8.0",
+    "cors": "^2.8.5",
+    "exif-parser": "^0.1.12",
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
+    "streamifier": "^0.1.1"
+  }
+}
